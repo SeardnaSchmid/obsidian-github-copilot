@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import MainLayout from "../layouts/MainLayout";
 import NoHistory from "./sections/NoHistory";
 import Header from "./sections/Header";
@@ -18,7 +18,17 @@ const Chat: React.FC = () => {
 		conversations,
 		activeConversationId,
 		initConversationService,
+		updateConversation, // for updating conversation messages
 	} = useCopilotStore();
+
+	// Edit state
+	const [editingIndex, setEditingIndex] = useState<number | null>(null);
+	const [editValue, setEditValue] = useState<string>("");
+
+	// Get current conversation
+	const conversation = activeConversationId
+		? conversations.find((conv) => conv.id === activeConversationId)
+		: undefined;
 
 	useEffect(() => {
 		if (plugin) {
@@ -26,31 +36,69 @@ const Chat: React.FC = () => {
 		}
 	}, [plugin, initConversationService]);
 
-	const displayMessages = activeConversationId
-		? conversations.find((conv) => conv.id === activeConversationId)
-				?.messages || []
-		: messages;
 
-	const formattedMessages: MessageProps[] = displayMessages.map(
-		(message) => ({
+		const displayMessages = conversation ? conversation.messages : messages;
+
+		const formattedMessages: MessageProps[] = displayMessages.map((message, idx) => ({
 			icon: message.role === "assistant" ? copilotIcon : userIcon,
 			name: message.role === "assistant" ? "GitHub Copilot" : "User",
 			message: message.content,
 			linkedNotes: message.linkedNotes,
-		}),
-	);
+			isEditing: editingIndex === idx,
+		}));
 
-	return (
-		<MainLayout>
-			<Header />
-			{formattedMessages.length === 0 ? (
-				<NoHistory />
-			) : (
-				<MessageList messages={formattedMessages} />
-			)}
-			<Input isLoading={isLoading} />
-		</MainLayout>
-	);
-};
+		// Handler: Start editing a user message
+		const handleEditMessage = (index: number) => {
+			if (displayMessages[index]?.role !== "user") return;
+			setEditingIndex(index);
+			setEditValue(displayMessages[index].content);
+		};
 
-export default Chat;
+		// Handler: Cancel editing
+		const handleCancelEdit = () => {
+			setEditingIndex(null);
+			setEditValue("");
+		};
+
+		// Handler: Save edited message and truncate history
+			const handleSubmitEdit = async () => {
+				if (editingIndex === null || !conversation || !plugin) return;
+				// Truncate messages up to and including the edited one
+				const truncated = [
+					...conversation.messages.slice(0, editingIndex),
+					{ ...conversation.messages[editingIndex], content: editValue },
+				];
+				// Update conversation
+				updateConversation(plugin, {
+					...conversation,
+					messages: truncated,
+				});
+				setEditingIndex(null);
+				setEditValue("");
+			};
+
+		return (
+			<MainLayout>
+				<Header />
+				{formattedMessages.length === 0 ? (
+					<NoHistory />
+				) : (
+					<MessageList
+						messages={formattedMessages}
+						onEditMessage={handleEditMessage}
+						editingIndex={editingIndex}
+					/>
+				)}
+				<Input
+					isLoading={isLoading}
+					editValue={editValue}
+					setEditValue={setEditValue}
+					isEditing={editingIndex !== null}
+					onSubmitEdit={handleSubmitEdit}
+					onCancelEdit={handleCancelEdit}
+				/>
+			</MainLayout>
+		);
+	};
+
+	export default Chat;

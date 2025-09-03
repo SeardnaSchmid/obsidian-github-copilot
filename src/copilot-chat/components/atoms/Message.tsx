@@ -18,6 +18,7 @@ export interface MessageProps {
 		filename: string;
 		content: string;
 	}[];
+	isEditing?: boolean;
 }
 
 interface CodeProps {
@@ -28,7 +29,7 @@ interface CodeProps {
 }
 
 const ChatMessage: React.FC<MessageProps> = (props) => {
-	const { className, icon, name, message, linkedNotes } = props;
+	const { className, icon, name, message, linkedNotes, isEditing } = props;
 	const plugin = usePlugin();
 	const [isCopied, setIsCopied] = React.useState(false);
 
@@ -105,56 +106,37 @@ const ChatMessage: React.FC<MessageProps> = (props) => {
 					)}
 				</button>
 			</div>
-			<div className={concat(BASE_CLASSNAME, "message")}>
-				<ReactMarkdown
-					components={{
-						p({ children }) {
-							return (
-								<p style={{ whiteSpace: "pre-wrap" }}>
-									{children}
-								</p>
-							);
-						},
-						code({
-							className,
-							inline,
-							children,
-							...props
-						}: CodeProps) {
-							const match = /language-(\w+)/.exec(
-								className || "",
-							);
-							return !inline && match ? (
-								<SyntaxHighlighter
-									language={match[1]}
-									style={
-										isDarkTheme
-											? vscDarkPlus
-											: (oneLight as Record<
-													string,
-													React.CSSProperties
-												>)
-									}
-									PreTag="div"
-									className={`theme-${isDarkTheme ? "dark" : "light"}`}
-									customStyle={{
-										background: "var(--code-background)",
-										borderRadius: "4px",
-									}}
-									{...props}
-								>
-									{String(children || "").replace(/\n$/, "")}
-								</SyntaxHighlighter>
-							) : (
-								<code className={className} {...props}>
-									{children}
-								</code>
-							);
-						},
-					}}
-				>
-					{message}
-				</ReactMarkdown>
+					<div className={concat(BASE_CLASSNAME, "message")}> 
+						{isEditing ? (
+							<span style={{ fontStyle: "italic", color: "#888" }}>[Editing...]</span>
+						) : (
+							<ReactMarkdown
+								components={{
+									p({ children }) {
+										return <p style={{ whiteSpace: "pre-wrap" }}>{children}</p>;
+									},
+									code({ className, inline, children, ...props }: CodeProps) {
+										const match = /language-(\w+)/.exec(className || "");
+										return !inline && match ? (
+											<SyntaxHighlighter
+												language={match[1]}
+												style={isDarkTheme ? vscDarkPlus : (oneLight as Record<string, React.CSSProperties>)}
+												PreTag="div"
+												className={`theme-${isDarkTheme ? "dark" : "light"}`}
+												customStyle={{ background: "var(--code-background)", borderRadius: "4px" }}
+												{...props}
+											>
+												{String(children || "").replace(/\n$/, "")}
+											</SyntaxHighlighter>
+										) : (
+											<code className={className} {...props}>{children}</code>
+										);
+									},
+								}}
+							>
+								{message}
+							</ReactMarkdown>
+						)}
 
 				{linkedNotes && linkedNotes.length > 0 && (
 					<div className={concat(BASE_CLASSNAME, "linked-notes")}>

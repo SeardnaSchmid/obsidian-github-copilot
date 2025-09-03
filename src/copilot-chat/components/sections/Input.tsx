@@ -10,6 +10,11 @@ const BASE_CLASSNAME = "copilot-chat-input";
 
 interface InputProps {
 	isLoading?: boolean;
+	editValue?: string;
+	setEditValue?: (v: string) => void;
+	isEditing?: boolean;
+	onSubmitEdit?: () => void;
+	onCancelEdit?: () => void;
 }
 
 interface CursorPosition {
