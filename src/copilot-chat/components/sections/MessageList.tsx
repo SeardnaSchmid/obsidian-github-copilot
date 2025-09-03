@@ -21,34 +21,27 @@ const MessageList: React.FC<MessageListProps> = ({ messages, onEditMessage, edit
 		}
 	}, [messages]);
 
-	return (
-		<div className={concat(BASE_CLASSNAME, "container")}>
-					{messages.map((message, index) => (
-						<div key={index} style={{ display: "flex", alignItems: "flex-start" }}>
-							<ChatMessage
-								className={cx(
-									concat(BASE_CLASSNAME, "item"),
-									message.name === "GitHub Copilot"
-										? concat(BASE_CLASSNAME, "assistant")
-										: concat(BASE_CLASSNAME, "user"),
-								)}
-								icon={message.icon}
-								name={message.name}
-								message={message.message}
-								isEditing={editingIndex === index}
-							/>
-							{message.name !== "GitHub Copilot" && onEditMessage && (
-								<EditIcon
-									onClick={() => onEditMessage(index)}
-									title="Edit message"
-									className={concat(BASE_CLASSNAME, "edit-icon")}
-								/>
-							)}
-						</div>
-					))}
-			<div ref={endOfMessagesRef} />
-		</div>
-	);
+		return (
+			<div className={concat(BASE_CLASSNAME, "container")}>
+				{messages.map((message, index) => (
+					<ChatMessage
+						key={index}
+						className={cx(
+							concat(BASE_CLASSNAME, "item"),
+							message.name === "GitHub Copilot"
+								? concat(BASE_CLASSNAME, "assistant")
+								: concat(BASE_CLASSNAME, "user"),
+						)}
+						icon={message.icon}
+						name={message.name}
+						message={message.message}
+						isEditing={editingIndex === index}
+						onEditMessage={message.name !== "GitHub Copilot" && onEditMessage ? () => onEditMessage(index) : undefined}
+					/>
+				))}
+				<div ref={endOfMessagesRef} />
+			</div>
+		);
 };
 
 export default MessageList;
