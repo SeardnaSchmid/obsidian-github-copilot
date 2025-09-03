@@ -116,7 +116,10 @@ const Input: React.FC<InputProps> = ({
 		}
 
 		const cursorPos = e.target.selectionStart;
-		const { isInPattern, query } = checkForFileLinkPattern(newValue, cursorPos);
+		const { isInPattern, query } = checkForFileLinkPattern(
+			newValue,
+			cursorPos,
+		);
 		if (isInPattern) {
 			setFileSearchQuery(query);
 			setShowFileSuggestion(true);
@@ -191,32 +194,37 @@ const Input: React.FC<InputProps> = ({
 		}
 	};
 
-		const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-			if (!plugin) return;
+	const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+		if (!plugin) return;
 
-			// In edit mode, Enter submits the edit (like VS Code)
-			if (isEditing && !e.shiftKey && e.key === "Enter" && !showFileSuggestion) {
-				e.preventDefault();
-				if (onSubmitEdit) onSubmitEdit();
-				return;
-			}
+		// In edit mode, Enter submits the edit (like VS Code)
+		if (
+			isEditing &&
+			!e.shiftKey &&
+			e.key === "Enter" &&
+			!showFileSuggestion
+		) {
+			e.preventDefault();
+			if (onSubmitEdit) onSubmitEdit();
+			return;
+		}
 
-			const invertBehavior = plugin.settings.invertEnterSendBehavior;
-			if (e.key === "Enter" && !showFileSuggestion) {
-				if (invertBehavior) {
-					if (e.shiftKey) {
-						e.preventDefault();
-						handleSubmit();
-					}
-				} else {
-					if (!e.shiftKey) {
-						e.preventDefault();
-						handleSubmit();
-					}
+		const invertBehavior = plugin.settings.invertEnterSendBehavior;
+		if (e.key === "Enter" && !showFileSuggestion) {
+			if (invertBehavior) {
+				if (e.shiftKey) {
+					e.preventDefault();
+					handleSubmit();
+				}
+			} else {
+				if (!e.shiftKey) {
+					e.preventDefault();
+					handleSubmit();
 				}
 			}
-			updateCursorPosition();
-		};
+		}
+		updateCursorPosition();
+	};
 
 	useEffect(() => {
 		if (textareaRef.current) {
@@ -242,9 +250,9 @@ const Input: React.FC<InputProps> = ({
 	}, []);
 
 	return (
-		<div className={concat(BASE_CLASSNAME, "container")}> 
+		<div className={concat(BASE_CLASSNAME, "container")}>
 			<ModelSelector isAuthenticated={isAuthenticated} />
-			<div className={concat(BASE_CLASSNAME, "input-container")}> 
+			<div className={concat(BASE_CLASSNAME, "input-container")}>
 				<textarea
 					ref={textareaRef}
 					className={cx(
@@ -254,7 +262,11 @@ const Input: React.FC<InputProps> = ({
 					value={isEditing ? editValue ?? "" : message}
 					onChange={handleMessageChange}
 					onKeyDown={handleKeyDown}
-					placeholder={isEditing ? "Edit your message..." : "Ask GitHub Copilot something... Use [[]] to link notes"}
+					placeholder={
+						isEditing
+							? "Edit your message..."
+							: "Ask GitHub Copilot something... Use [[]] to link notes"
+					}
 					disabled={isLoading || !isAuthenticated}
 				/>
 				{showFileSuggestion && (
@@ -269,9 +281,16 @@ const Input: React.FC<InputProps> = ({
 				{isEditing ? (
 					<>
 						<button
-							className={cx("mod-cta", concat(BASE_CLASSNAME, "button"))}
+							className={cx(
+								"mod-cta",
+								concat(BASE_CLASSNAME, "button"),
+							)}
 							onClick={onSubmitEdit}
-							disabled={isLoading || (editValue ?? "").trim() === "" || !isAuthenticated}
+							disabled={
+								isLoading ||
+								(editValue ?? "").trim() === "" ||
+								!isAuthenticated
+							}
 						>
 							Save
 						</button>
@@ -285,9 +304,16 @@ const Input: React.FC<InputProps> = ({
 					</>
 				) : (
 					<button
-						className={cx("mod-cta", concat(BASE_CLASSNAME, "button"))}
+						className={cx(
+							"mod-cta",
+							concat(BASE_CLASSNAME, "button"),
+						)}
 						onClick={handleSubmit}
-						disabled={isLoading || message.trim() === "" || !isAuthenticated}
+						disabled={
+							isLoading ||
+							message.trim() === "" ||
+							!isAuthenticated
+						}
 					>
 						{isLoading ? "Thinking..." : "Send"}
 					</button>
