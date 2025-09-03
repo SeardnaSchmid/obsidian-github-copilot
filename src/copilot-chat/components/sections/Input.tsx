@@ -22,7 +22,14 @@ interface CursorPosition {
 	end: number;
 }
 
-const Input: React.FC<InputProps> = ({ isLoading = false }) => {
+const Input: React.FC<InputProps> = ({
+	isLoading = false,
+	editValue,
+	setEditValue,
+	isEditing,
+	onSubmitEdit,
+	onCancelEdit,
+}) => {
 	const [message, setMessage] = useState("");
 	const plugin = usePlugin();
 	const { sendMessage, isAuthenticated } = useCopilotStore();
@@ -102,22 +109,20 @@ const Input: React.FC<InputProps> = ({ isLoading = false }) => {
 
 	const handleMessageChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
 		const newValue = e.target.value;
-		setMessage(newValue);
+		if (isEditing && setEditValue) {
+			setEditValue(newValue);
+		} else {
+			setMessage(newValue);
+		}
 
 		const cursorPos = e.target.selectionStart;
-
-		const { isInPattern, query } = checkForFileLinkPattern(
-			newValue,
-			cursorPos,
-		);
-
+		const { isInPattern, query } = checkForFileLinkPattern(newValue, cursorPos);
 		if (isInPattern) {
 			setFileSearchQuery(query);
 			setShowFileSuggestion(true);
 		} else {
 			setShowFileSuggestion(false);
 		}
-
 		setCursorPosition({
 			start: e.target.selectionStart,
 			end: e.target.selectionEnd,
@@ -232,19 +237,19 @@ const Input: React.FC<InputProps> = ({ isLoading = false }) => {
 	}, []);
 
 	return (
-		<div className={concat(BASE_CLASSNAME, "container")}>
+		<div className={concat(BASE_CLASSNAME, "container")}> 
 			<ModelSelector isAuthenticated={isAuthenticated} />
-			<div className={concat(BASE_CLASSNAME, "input-container")}>
+			<div className={concat(BASE_CLASSNAME, "input-container")}> 
 				<textarea
 					ref={textareaRef}
 					className={cx(
 						"setting-item-input",
 						concat(BASE_CLASSNAME, "input"),
 					)}
-					value={message}
+					value={isEditing ? editValue ?? "" : message}
 					onChange={handleMessageChange}
 					onKeyDown={handleKeyDown}
-					placeholder="Ask GitHub Copilot something... Use [[]] to link notes"
+					placeholder={isEditing ? "Edit your message..." : "Ask GitHub Copilot something... Use [[]] to link notes"}
 					disabled={isLoading || !isAuthenticated}
 				/>
 				{showFileSuggestion && (
@@ -256,15 +261,32 @@ const Input: React.FC<InputProps> = ({ isLoading = false }) => {
 						plugin={plugin}
 					/>
 				)}
-				<button
-					className={cx("mod-cta", concat(BASE_CLASSNAME, "button"))}
-					onClick={handleSubmit}
-					disabled={
-						isLoading || message.trim() === "" || !isAuthenticated
-					}
-				>
-					{isLoading ? "Thinking..." : "Send"}
-				</button>
+				{isEditing ? (
+					<>
+						<button
+							className={cx("mod-cta", concat(BASE_CLASSNAME, "button"))}
+							onClick={onSubmitEdit}
+							disabled={isLoading || (editValue ?? "").trim() === "" || !isAuthenticated}
+						>
+							Save
+						</button>
+						<button
+							className={cx(concat(BASE_CLASSNAME, "button"))}
+							onClick={onCancelEdit}
+							disabled={isLoading}
+						>
+							Cancel
+						</button>
+					</>
+				) : (
+					<button
+						className={cx("mod-cta", concat(BASE_CLASSNAME, "button"))}
+						onClick={handleSubmit}
+						disabled={isLoading || message.trim() === "" || !isAuthenticated}
+					>
+						{isLoading ? "Thinking..." : "Send"}
+					</button>
+				)}
 			</div>
 		</div>
 	);
