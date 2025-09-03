@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { sendMessage as sendMessageApi } from "../api/sendMessage";
 import MainLayout from "../layouts/MainLayout";
@@ -13,30 +14,28 @@ import { usePlugin } from "../hooks/usePlugin";
 
 const Chat: React.FC = () => {
 	const plugin = usePlugin();
-		const {
-			messages,
-			isLoading,
-			conversations,
-			activeConversationId,
-			initConversationService,
-			updateConversation, // for updating conversation messages
-			sendMessage, // <-- added
-		} = useCopilotStore();
+	const {
+		messages,
+		isLoading,
+		conversations,
+		activeConversationId,
+		initConversationService,
+		updateConversation,
+		sendMessage,
+	} = useCopilotStore();
 
-	// Edit state
 	const [editingIndex, setEditingIndex] = useState<number | null>(null);
 	const [editValue, setEditValue] = useState<string>("");
-
-	// Get current conversation
-	const conversation = activeConversationId
-		? conversations.find((conv) => conv.id === activeConversationId)
-		: undefined;
 
 	useEffect(() => {
 		if (plugin) {
 			initConversationService(plugin);
 		}
 	}, [plugin, initConversationService]);
+
+	const conversation = activeConversationId
+		? conversations.find((conv) => conv.id === activeConversationId)
+		: undefined;
 
 	const displayMessages = conversation ? conversation.messages : messages;
 	const formattedMessages: MessageProps[] = displayMessages.map((message, idx) => ({
@@ -101,66 +100,64 @@ const Chat: React.FC = () => {
 				...promptMessages
 			]
 			: promptMessages;
-	// Linked notes from edited message
-	// const linkedNotes = truncated[truncated.length - 1].linkedNotes;
 		// Get model
 		const model = conversation.model.value;
 		// Prepare request
-					const requestData = {
-						intent: false,
-						model,
-						temperature: 0,
-						top_p: 1,
-						n: 1,
-						stream: false,
-						messages: messagesToSend,
-					};
-					// Get token and send
-					try {
-						const validToken = await useCopilotStore.getState().checkAndRefreshToken(plugin);
-						if (!validToken) throw new Error("Failed to get a valid access token");
-						const response = await sendMessageApi(requestData, validToken);
-						if (response && response.choices && response.choices.length > 0) {
-							const assistantMessage = {
-								id: response.id || Date.now().toString() + "-assistant",
-								content: response.choices[0].message.content,
-								role: "assistant" as "assistant",
-								timestamp: Date.now(),
-							};
-							updateConversation(plugin, {
-								...conversation,
-								messages: [...truncated, assistantMessage],
-							});
-						}
-					} catch (error) {
-						console.error("Error sending edited message:", error);
-					} finally {
-						useCopilotStore.setState({ isLoading: false });
-					}
+		const requestData = {
+			intent: false,
+			model,
+			temperature: 0,
+			top_p: 1,
+			n: 1,
+			stream: false,
+			messages: messagesToSend,
+		};
+		// Get token and send
+		try {
+			const validToken = await useCopilotStore.getState().checkAndRefreshToken(plugin);
+			if (!validToken) throw new Error("Failed to get a valid access token");
+			const response = await sendMessageApi(requestData, validToken);
+			if (response && response.choices && response.choices.length > 0) {
+				const assistantMessage = {
+					id: response.id || Date.now().toString() + "-assistant",
+					content: response.choices[0].message.content,
+					role: "assistant" as "assistant",
+					timestamp: Date.now(),
 				};
-
-		return (
-			<MainLayout>
-				<Header />
-				{formattedMessages.length === 0 ? (
-					<NoHistory />
-				) : (
-					<MessageList
-						messages={formattedMessages}
-						onEditMessage={handleEditMessage}
-						editingIndex={editingIndex}
-					/>
-				)}
-				<Input
-					isLoading={isLoading}
-					editValue={editValue}
-					setEditValue={setEditValue}
-					isEditing={editingIndex !== null}
-					onSubmitEdit={handleSubmitEdit}
-					onCancelEdit={handleCancelEdit}
-				/>
-			</MainLayout>
-		);
+				updateConversation(plugin, {
+					...conversation,
+					messages: [...truncated, assistantMessage],
+				});
+			}
+		} catch (error) {
+			console.error("Error sending edited message:", error);
+		} finally {
+			useCopilotStore.setState({ isLoading: false });
+		}
 	};
 
-	export default Chat;
+	return (
+		<MainLayout>
+			<Header />
+			{formattedMessages.length === 0 ? (
+				<NoHistory />
+			) : (
+				<MessageList
+					messages={formattedMessages}
+					onEditMessage={handleEditMessage}
+					editingIndex={editingIndex}
+				/>
+			)}
+			<Input
+				isLoading={isLoading}
+				editValue={editValue}
+				setEditValue={setEditValue}
+				isEditing={editingIndex !== null}
+				onSubmitEdit={handleSubmitEdit}
+				onCancelEdit={handleCancelEdit}
+			/>
+		</MainLayout>
+	);
+};
+
+export default Chat;

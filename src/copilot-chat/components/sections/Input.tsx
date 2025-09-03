@@ -11,7 +11,7 @@ const BASE_CLASSNAME = "copilot-chat-input";
 interface InputProps {
 	isLoading?: boolean;
 	editValue?: string;
-	setEditValue?: (v: string) => void;
+	setEditValue?: React.Dispatch<React.SetStateAction<string>>;
 	isEditing?: boolean;
 	onSubmitEdit?: () => void;
 	onCancelEdit?: () => void;
@@ -24,13 +24,13 @@ interface CursorPosition {
 
 const Input: React.FC<InputProps> = ({
 	isLoading = false,
-	editValue,
+	editValue = "",
 	setEditValue,
-	isEditing,
+	isEditing = false,
 	onSubmitEdit,
 	onCancelEdit,
 }) => {
-	const [message, setMessage] = useState("");
+	const [message, setMessage] = useState(editValue);
 	const plugin = usePlugin();
 	const { sendMessage, isAuthenticated } = useCopilotStore();
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -109,23 +109,20 @@ const Input: React.FC<InputProps> = ({
 
 	const handleMessageChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
 		const newValue = e.target.value;
+		setMessage(newValue);
 		if (isEditing && setEditValue) {
 			setEditValue(newValue);
-		} else {
-			setMessage(newValue);
 		}
 
 		const cursorPos = e.target.selectionStart;
-		const { isInPattern, query } = checkForFileLinkPattern(
-			newValue,
-			cursorPos,
-		);
+		const { isInPattern, query } = checkForFileLinkPattern(newValue, cursorPos);
 		if (isInPattern) {
 			setFileSearchQuery(query);
 			setShowFileSuggestion(true);
 		} else {
 			setShowFileSuggestion(false);
 		}
+
 		setCursorPosition({
 			start: e.target.selectionStart,
 			end: e.target.selectionEnd,
@@ -194,37 +191,32 @@ const Input: React.FC<InputProps> = ({
 		}
 	};
 
-	const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-		if (!plugin) return;
+		const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+			if (!plugin) return;
 
-		// In edit mode, Enter submits the edit (like VS Code)
-		if (
-			isEditing &&
-			!e.shiftKey &&
-			e.key === "Enter" &&
-			!showFileSuggestion
-		) {
-			e.preventDefault();
-			if (onSubmitEdit) onSubmitEdit();
-			return;
-		}
+			// In edit mode, Enter submits the edit (like VS Code)
+			if (isEditing && !e.shiftKey && e.key === "Enter" && !showFileSuggestion) {
+				e.preventDefault();
+				if (onSubmitEdit) onSubmitEdit();
+				return;
+			}
 
-		const invertBehavior = plugin.settings.invertEnterSendBehavior;
-		if (e.key === "Enter" && !showFileSuggestion) {
-			if (invertBehavior) {
-				if (e.shiftKey) {
-					e.preventDefault();
-					handleSubmit();
-				}
-			} else {
-				if (!e.shiftKey) {
-					e.preventDefault();
-					handleSubmit();
+			const invertBehavior = plugin.settings.invertEnterSendBehavior;
+			if (e.key === "Enter" && !showFileSuggestion) {
+				if (invertBehavior) {
+					if (e.shiftKey) {
+						e.preventDefault();
+						handleSubmit();
+					}
+				} else {
+					if (!e.shiftKey) {
+						e.preventDefault();
+						handleSubmit();
+					}
 				}
 			}
-		}
-		updateCursorPosition();
-	};
+			updateCursorPosition();
+		};
 
 	useEffect(() => {
 		if (textareaRef.current) {
@@ -259,14 +251,10 @@ const Input: React.FC<InputProps> = ({
 						"setting-item-input",
 						concat(BASE_CLASSNAME, "input"),
 					)}
-					value={isEditing ? editValue ?? "" : message}
+					value={message}
 					onChange={handleMessageChange}
 					onKeyDown={handleKeyDown}
-					placeholder={
-						isEditing
-							? "Edit your message..."
-							: "Ask GitHub Copilot something... Use [[]] to link notes"
-					}
+					placeholder={isEditing ? "Edit your message..." : "Ask GitHub Copilot something... Use [[]] to link notes"}
 					disabled={isLoading || !isAuthenticated}
 				/>
 				{showFileSuggestion && (
@@ -281,16 +269,9 @@ const Input: React.FC<InputProps> = ({
 				{isEditing ? (
 					<>
 						<button
-							className={cx(
-								"mod-cta",
-								concat(BASE_CLASSNAME, "button"),
-							)}
+							className={cx("mod-cta", concat(BASE_CLASSNAME, "button"))}
 							onClick={onSubmitEdit}
-							disabled={
-								isLoading ||
-								(editValue ?? "").trim() === "" ||
-								!isAuthenticated
-							}
+							disabled={isLoading || (editValue ?? "").trim() === "" || !isAuthenticated}
 						>
 							Save
 						</button>
@@ -304,16 +285,9 @@ const Input: React.FC<InputProps> = ({
 					</>
 				) : (
 					<button
-						className={cx(
-							"mod-cta",
-							concat(BASE_CLASSNAME, "button"),
-						)}
+						className={cx("mod-cta", concat(BASE_CLASSNAME, "button"))}
 						onClick={handleSubmit}
-						disabled={
-							isLoading ||
-							message.trim() === "" ||
-							!isAuthenticated
-						}
+						disabled={isLoading || message.trim() === "" || !isAuthenticated}
 					>
 						{isLoading ? "Thinking..." : "Send"}
 					</button>
