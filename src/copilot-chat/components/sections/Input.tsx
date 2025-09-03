@@ -191,27 +191,32 @@ const Input: React.FC<InputProps> = ({
 		}
 	};
 
-	const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-		if (!plugin) return;
+		const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+			if (!plugin) return;
 
-		const invertBehavior = plugin.settings.invertEnterSendBehavior;
+			// In edit mode, Enter submits the edit (like VS Code)
+			if (isEditing && !e.shiftKey && e.key === "Enter" && !showFileSuggestion) {
+				e.preventDefault();
+				if (onSubmitEdit) onSubmitEdit();
+				return;
+			}
 
-		if (e.key === "Enter" && !showFileSuggestion) {
-			if (invertBehavior) {
-				if (e.shiftKey) {
-					e.preventDefault();
-					handleSubmit();
-				}
-			} else {
-				if (!e.shiftKey) {
-					e.preventDefault();
-					handleSubmit();
+			const invertBehavior = plugin.settings.invertEnterSendBehavior;
+			if (e.key === "Enter" && !showFileSuggestion) {
+				if (invertBehavior) {
+					if (e.shiftKey) {
+						e.preventDefault();
+						handleSubmit();
+					}
+				} else {
+					if (!e.shiftKey) {
+						e.preventDefault();
+						handleSubmit();
+					}
 				}
 			}
-		}
-
-		updateCursorPosition();
-	};
+			updateCursorPosition();
+		};
 
 	useEffect(() => {
 		if (textareaRef.current) {

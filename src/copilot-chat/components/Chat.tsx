@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { sendMessage as sendMessageApi } from "../api/sendMessage";
 import MainLayout from "../layouts/MainLayout";
 import NoHistory from "./sections/NoHistory";
 import Header from "./sections/Header";
@@ -12,14 +13,15 @@ import { usePlugin } from "../hooks/usePlugin";
 
 const Chat: React.FC = () => {
 	const plugin = usePlugin();
-	const {
-		messages,
-		isLoading,
-		conversations,
-		activeConversationId,
-		initConversationService,
-		updateConversation, // for updating conversation messages
-	} = useCopilotStore();
+		const {
+			messages,
+			isLoading,
+			conversations,
+			activeConversationId,
+			initConversationService,
+			updateConversation, // for updating conversation messages
+			sendMessage, // <-- added
+		} = useCopilotStore();
 
 	// Edit state
 	const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -36,46 +38,106 @@ const Chat: React.FC = () => {
 		}
 	}, [plugin, initConversationService]);
 
+	const displayMessages = conversation ? conversation.messages : messages;
+	const formattedMessages: MessageProps[] = displayMessages.map((message, idx) => ({
+		icon: message.role === "assistant" ? copilotIcon : userIcon,
+		name: message.role === "assistant" ? "GitHub Copilot" : "User",
+		message: message.content,
+		linkedNotes: message.linkedNotes,
+		isEditing: editingIndex === idx,
+	}));
 
-		const displayMessages = conversation ? conversation.messages : messages;
+	// Handler: Start editing a user message
+	const handleEditMessage = (index: number) => {
+		if (displayMessages[index]?.role !== "user") return;
+		setEditingIndex(index);
+		setEditValue(displayMessages[index].content);
+	};
 
-		const formattedMessages: MessageProps[] = displayMessages.map((message, idx) => ({
-			icon: message.role === "assistant" ? copilotIcon : userIcon,
-			name: message.role === "assistant" ? "GitHub Copilot" : "User",
-			message: message.content,
-			linkedNotes: message.linkedNotes,
-			isEditing: editingIndex === idx,
-		}));
+	// Handler: Cancel editing
+	const handleCancelEdit = () => {
+		setEditingIndex(null);
+		setEditValue("");
+	};
 
-		// Handler: Start editing a user message
-		const handleEditMessage = (index: number) => {
-			if (displayMessages[index]?.role !== "user") return;
-			setEditingIndex(index);
-			setEditValue(displayMessages[index].content);
-		};
+	// Handler: Save edited message and truncate history, then send to LLM (no duplicate user entry)
+	const handleSubmitEdit = async () => {
+		if (editingIndex === null || !conversation || !plugin) return;
+		// Immediately exit edit mode so UI switches to 'Thinking...'
+		setEditingIndex(null);
+		setEditValue("");
 
-		// Handler: Cancel editing
-		const handleCancelEdit = () => {
-			setEditingIndex(null);
-			setEditValue("");
-		};
+		// Truncate messages up to and including the edited one
+		const truncated = [
+			...conversation.messages.slice(0, editingIndex),
+			{ ...conversation.messages[editingIndex], content: editValue },
+		];
+		// Update conversation
+		updateConversation(plugin, {
+			...conversation,
+			messages: truncated,
+		});
 
-		// Handler: Save edited message and truncate history
-			const handleSubmitEdit = async () => {
-				if (editingIndex === null || !conversation || !plugin) return;
-				// Truncate messages up to and including the edited one
-				const truncated = [
-					...conversation.messages.slice(0, editingIndex),
-					{ ...conversation.messages[editingIndex], content: editValue },
-				];
-				// Update conversation
-				updateConversation(plugin, {
-					...conversation,
-					messages: truncated,
-				});
-				setEditingIndex(null);
-				setEditValue("");
-			};
+		// Set isLoading to true in the store
+		useCopilotStore.setState({ isLoading: true });
+
+		// Build prompt from truncated messages
+		const promptMessages = truncated.map(
+			(msg): { content: string; role: "user" | "assistant" | "system" } => ({
+				content: msg.content,
+				role:
+					msg.role === "user" ||
+					msg.role === "assistant" ||
+					msg.role === "system"
+						? msg.role
+						: "user",
+			})
+		);
+		// Optionally add system prompt
+		const systemPrompt = plugin?.settings.systemPrompt;
+		const messagesToSend: { content: string; role: "user" | "assistant" | "system" }[] = systemPrompt
+			? [
+				{ content: systemPrompt, role: "system" as "system" },
+				...promptMessages
+			]
+			: promptMessages;
+	// Linked notes from edited message
+	// const linkedNotes = truncated[truncated.length - 1].linkedNotes;
+		// Get model
+		const model = conversation.model.value;
+		// Prepare request
+					const requestData = {
+						intent: false,
+						model,
+						temperature: 0,
+						top_p: 1,
+						n: 1,
+						stream: false,
+						messages: messagesToSend,
+					};
+					// Get token and send
+					try {
+						const validToken = await useCopilotStore.getState().checkAndRefreshToken(plugin);
+						if (!validToken) throw new Error("Failed to get a valid access token");
+						const response = await sendMessageApi(requestData, validToken);
+						if (response && response.choices && response.choices.length > 0) {
+							const assistantMessage = {
+								id: response.id || Date.now().toString() + "-assistant",
+								content: response.choices[0].message.content,
+								role: "assistant" as "assistant",
+								timestamp: Date.now(),
+							};
+							updateConversation(plugin, {
+								...conversation,
+								messages: [...truncated, assistantMessage],
+							});
+						}
+					} catch (error) {
+						console.error("Error sending edited message:", error);
+					} finally {
+						useCopilotStore.setState({ isLoading: false });
+					}
+				};
 
 		return (
 			<MainLayout>
